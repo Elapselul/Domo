@@ -29,4 +29,9 @@ class FakeCarData:
             "boost": round(self.boost, 1),
             "coolant": int(self.coolant),
             "battery": round(self.battery, 1),
+            "iat": int(random.randint(25, 55)),
+            "map": int(random.randint(100, 260)),
+            "maf": int(random.randint(20, 160)),
+            "commanded_boost": round(random.uniform(0, 22), 1),
+
         }

@@ -1,8 +1,21 @@
+# Colours
 BG = "#05070A"
 PANEL = "#101820"
+PANEL_DARK = "#0B1117"
+
 TEXT = "#F2F5F7"
 MUTED = "#8A98A8"
+
 ACCENT = "#2D9CDB"
+GOOD = "#27AE60"
 WARNING = "#F2994A"
 DANGER = "#EB5757"
-GOOD = "#27AE60"
+
+BORDER = "#1B2A36"
+
+# Fonts
+FONT_MAIN = "Arial"
+
+# Spacing
+MARGIN = 24
+CARD_RADIUS = 16
