@@ -27,7 +27,7 @@ class HomePage(QWidget):
         header.addWidget(title)
         header.addWidget(status)
 
-        self.boost_gauge = CircularGauge("BOOST", "PSI", 0, 24)
+        self.boost_gauge = CircularGauge("BOOST", "PSI", 0, 24, warning=18, danger=22)
 
         self.rpm = ValueCard("RPM", "--", "rpm")
         self.coolant = ValueCard("COOLANT", "--", "°C")
@@ -56,7 +56,7 @@ class HomePage(QWidget):
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_data)
-        self.timer.start(300)
+        self.timer.start(16)
 
     def update_data(self):
         data = self.vehicle_service.get_current_data()
