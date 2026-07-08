@@ -5,6 +5,8 @@ from PyQt6.QtGui import QFont
 from data import FakeCarData
 import theme
 
+from gauges import BoostGauge
+
 
 class Dashboard(QWidget):
     def __init__(self):
@@ -28,7 +30,7 @@ class Dashboard(QWidget):
         self.speed_unit.setFont(QFont("Arial", 22))
         self.speed_unit.setStyleSheet(f"color: {theme.MUTED};")
 
-        self.boost_card, self.boost_value = self.make_card("BOOST", "0.0 psi")
+        self.boost_gauge = BoostGauge()
         self.rpm_card, self.rpm_value = self.make_card("RPM", "0")
         self.coolant_card, self.coolant_value = self.make_card("COOLANT", "0°C")
         self.battery_card, self.battery_value = self.make_card("BATTERY", "0.0V")
@@ -55,7 +57,7 @@ class Dashboard(QWidget):
         top_layout.addWidget(self.speed_unit)
 
         middle_layout = QHBoxLayout()
-        middle_layout.addWidget(self.boost_card)
+        middle_layout.addWidget(self.boost_gauge)
         middle_layout.addWidget(self.rpm_card)
 
         bottom_layout = QHBoxLayout()
@@ -108,7 +110,7 @@ class Dashboard(QWidget):
         data = self.car_data.get_data()
 
         self.speed_value.setText(str(data["speed"]))
-        self.boost_value.setText(f'{data["boost"]:.1f} psi')
+        self.boost_gauge.setValue(data["boost"])
         self.rpm_value.setText(str(data["rpm"]))
         self.coolant_value.setText(f'{data["coolant"]}°C')
         self.battery_value.setText(f'{data["battery"]:.1f}V')
