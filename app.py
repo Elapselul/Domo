@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QFrame, Q
 from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtGui import QFont
 
-from data import FakeCarData
+from app.services.vehicle_service import VehicleService
 import theme
 
 from gauges import BoostGauge
@@ -74,7 +74,7 @@ class Dashboard(QWidget):
 
         self.setLayout(main_layout)
 
-        self.car_data = FakeCarData()
+        self.vehicle_service = VehicleService()
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_dashboard)
@@ -107,7 +107,7 @@ class Dashboard(QWidget):
         return card, value_label
 
     def update_dashboard(self):
-        data = self.car_data.get_data()
+        data = self.vehicle_service.get_current_data()
 
         self.speed_value.setText(str(data["speed"]))
         self.boost_gauge.setValue(data["boost"])
