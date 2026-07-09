@@ -33,5 +33,8 @@ class FakeCarData:
             "map": int(random.randint(100, 260)),
             "maf": int(random.randint(20, 160)),
             "commanded_boost": round(random.uniform(0, 22), 1),
+            "egt": int(random.randint(250, 650)),
+            "trans_temp": int(random.randint(65, 95)),
+            "oil_pressure": int(random.randint(25, 70)),
 
         }
