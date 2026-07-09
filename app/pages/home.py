@@ -27,7 +27,7 @@ class HomePage(QWidget):
         header.addWidget(title)
         header.addWidget(status)
 
-        self.boost_gauge = CircularGauge("MAP", "PSI", 0, 24, warning=18, danger=22)
+        self.boost_gauge = CircularGauge("BOOST", "PSI", 0, 24, warning=18, danger=22)
 
         self.rpm = ValueCard("RPM", "--", "rpm")
         self.coolant = ValueCard("COOLANT", "--", "°C")
