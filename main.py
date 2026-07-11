@@ -1,13 +1,13 @@
 import sys
+
 from PyQt6.QtWidgets import QApplication
-from app.pages.home import HomePage
+
+from app.dashboard_window import DashboardWindow
 
 
 app = QApplication(sys.argv)
 
-window = HomePage()
-window.setWindowTitle("DOMO")
-window.resize(900, 500)
+window = DashboardWindow()
 window.show()
 
 sys.exit(app.exec())

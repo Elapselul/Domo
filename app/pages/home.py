@@ -1,6 +1,5 @@
-from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QGridLayout
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QGridLayout
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QFont
 
 from app.widgets.circular_gauge import CircularGauge
 from app.widgets.value_card import ValueCard
@@ -13,28 +12,35 @@ class HomePage(QWidget):
 
         self.vehicle_service = VehicleService()
 
-        self.setStyleSheet("background-color: #05070A; color: white;")
+        self.setStyleSheet(
+            "background-color: #05070A; color: white;"
+        )
 
-        title = QLabel("DOMO")
-        title.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        title.setFont(QFont("Arial", 24, QFont.Weight.Bold))
 
-        status = QLabel("● Connected")
-        status.setAlignment(Qt.AlignmentFlag.AlignRight)
-        status.setFont(QFont("Arial", 12))
-
-        header = QHBoxLayout()
-        header.addWidget(title)
-        header.addWidget(status)
-
-        self.boost_gauge = CircularGauge("BOOST", "PSI", 0, 24, warning=18, danger=22)
+        self.boost_gauge = CircularGauge(
+            "BOOST",
+            "PSI",
+            0,
+            24,
+            warning=18,
+            danger=22,
+        )
 
         self.rpm = ValueCard("RPM", "--", "rpm")
         self.coolant = ValueCard("COOLANT", "--", "°C")
-        self.battery = ValueCard("BATTERY", "--", "V")
+        self.battery = ValueCard(
+            "BATTERY",
+            "--",
+            "V",
+            decimals=1,
+        )
         self.egt = ValueCard("EGT", "--", "°C")
         self.trans_temp = ValueCard("TRANS TEMP", "--", "°C")
-        self.oil_pressure = ValueCard("OIL PRESSURE", "--", "psi")
+        self.oil_pressure = ValueCard(
+            "OIL PRESSURE",
+            "--",
+            "psi",
+        )
 
         grid = QGridLayout()
         grid.addWidget(self.rpm, 0, 0)
@@ -43,20 +49,23 @@ class HomePage(QWidget):
         grid.addWidget(self.egt, 1, 0)
         grid.addWidget(self.trans_temp, 1, 1)
         grid.addWidget(self.oil_pressure, 1, 2)
-        grid.setSpacing(14)
+        grid.setSpacing(10)
 
         layout = QVBoxLayout()
-        layout.addLayout(header)
-        layout.addWidget(self.boost_gauge, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(
+            self.boost_gauge,
+            alignment=Qt.AlignmentFlag.AlignCenter,
+        )
         layout.addLayout(grid)
-        layout.setContentsMargins(24, 18, 24, 24)
-        layout.setSpacing(18)
+
+        layout.setContentsMargins(14, 10, 14, 12)
+        layout.setSpacing(10)
 
         self.setLayout(layout)
 
-        self.timer = QTimer()
+        self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_data)
-        self.timer.start(16)
+        self.timer.start(180)
 
     def update_data(self):
         data = self.vehicle_service.get_current_data()
