@@ -1,3 +1,4 @@
+from app.models.vehicle_data import VehicleData
 import random
 
 
@@ -23,18 +24,17 @@ class FakeCarData:
         self.coolant = self.move_towards(self.coolant, random.randint(78, 98), 0.2)
         self.battery = self.move_towards(self.battery, random.uniform(12.4, 14.5), 0.1)
 
-        return {
-            "speed": int(self.speed),
-            "rpm": int(self.rpm),
-            "boost": round(self.boost, 1),
-            "coolant": int(self.coolant),
-            "battery": round(self.battery, 1),
-            "iat": int(random.randint(25, 55)),
-            "map": int(random.randint(100, 260)),
-            "maf": int(random.randint(20, 160)),
-            "commanded_boost": round(random.uniform(0, 22), 1),
-            "egt": int(random.randint(250, 650)),
-            "trans_temp": int(random.randint(65, 95)),
-            "oil_pressure": int(random.randint(25, 70)),
-
-        }
+        return VehicleData(
+            speed=int(self.speed),
+            rpm=int(self.rpm),
+            boost=round(self.boost, 1),
+            commanded_boost=round(random.uniform(0, 22), 1),
+            coolant=int(self.coolant),
+            battery=round(self.battery, 1),
+            egt=int(random.randint(250, 650)),
+            trans_temp=int(random.randint(65, 95)),
+            oil_pressure=int(random.randint(25, 70)),
+            iat=int(random.randint(25, 55)),
+            map=int(random.randint(100, 260)),
+            maf=int(random.randint(20, 160)),
+        )

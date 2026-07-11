@@ -1,16 +1,15 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QGridLayout
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt
 
 from app.widgets.circular_gauge import CircularGauge
 from app.widgets.value_card import ValueCard
-from app.services.vehicle_service import VehicleService
 
 
 class HomePage(QWidget):
-    def __init__(self):
+    def __init__(self, vehicle_service):
         super().__init__()
 
-        self.vehicle_service = VehicleService()
+        self.vehicle_service = vehicle_service
 
         self.setStyleSheet(
             "background-color: #05070A; color: white;"
@@ -63,17 +62,12 @@ class HomePage(QWidget):
 
         self.setLayout(layout)
 
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update_data)
-        self.timer.start(180)
+    def update_data(self, data):
 
-    def update_data(self):
-        data = self.vehicle_service.get_current_data()
-
-        self.boost_gauge.set_value(data["boost"])
-        self.rpm.set_value(data["rpm"])
-        self.coolant.set_value(data["coolant"])
-        self.battery.set_value(data["battery"])
-        self.egt.set_value(data["egt"])
-        self.trans_temp.set_value(data["trans_temp"])
-        self.oil_pressure.set_value(data["oil_pressure"])
+        self.boost_gauge.set_value(data.boost)
+        self.rpm.set_value(data.rpm)
+        self.coolant.set_value(data.coolant)
+        self.battery.set_value(data.battery)
+        self.egt.set_value(data.egt)
+        self.trans_temp.set_value(data.trans_temp)
+        self.oil_pressure.set_value(data.oil_pressure)
