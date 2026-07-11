@@ -76,6 +76,15 @@ class CircularGauge(QWidget):
 
         percent = (self.value - self.minimum) / (self.maximum - self.minimum)
         value_angle = -int(total_angle * percent * 16)
+        
+        glow_pen = QPen(self.get_colour())
+        glow_pen.setWidth(14)
+        glow_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        painter.setOpacity(0.18)
+        painter.setPen(glow_pen)
+        painter.drawArc(rect, start_angle * 16, value_angle)
+        painter.setOpacity(1.0)
+
 
         value_pen = QPen(self.get_colour())
         value_pen.setWidth(5)
