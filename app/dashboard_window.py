@@ -31,7 +31,10 @@ class DashboardWindow(QWidget):
 
         self.pages = QStackedWidget()
         self.home_page = HomePage(self.vehicle_service)
-        self.performance_page = PerformancePage(self.vehicle_service)
+        self.performance_page = PerformancePage(
+            self.vehicle_service,
+            self.data_logger,
+        )
 
         self.pages.addWidget(self.home_page)
         self.pages.addWidget(self.performance_page)

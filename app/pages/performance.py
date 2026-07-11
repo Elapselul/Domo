@@ -59,7 +59,10 @@ class PerformancePage(QWidget):
         },
     }
 
-    def __init__(self, vehicle_service):
+    def __init__(self, vehicle_service, data_logger):
+        self.vehicle_service = vehicle_service
+        self.data_logger = data_logger
+
         super().__init__()
 
         self.vehicle_service = vehicle_service
@@ -224,6 +227,22 @@ class PerformancePage(QWidget):
             minimum=config["minimum"],
             maximum=config["maximum"],
         )
+        
+        self.reload_graph()
+
+    def reload_graph(self):
+        config = self.GRAPH_SIGNALS[self.selected_signal]
+
+        samples = self.data_logger.get_latest(
+            self.graph.max_points
+        )
+
+        values = [
+            getattr(sample, config["field"])
+            for sample in samples
+        ]
+
+        self.graph.set_values(values)
 
     def update_data(self, data):
         self.peaks["boost"] = max(
