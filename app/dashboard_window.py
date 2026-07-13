@@ -14,6 +14,7 @@ from app.pages.settings import SettingsPage
 
 from app.services.vehicle_service import VehicleService
 from app.services.data_logger import DataLogger
+from app.services.settings_service import SettingsService
 
 
 class DashboardWindow(QWidget):
@@ -33,6 +34,8 @@ class DashboardWindow(QWidget):
         self.vehicle_service = VehicleService()
         self.data_logger = DataLogger(max_samples=500)
 
+        self.settings_service = SettingsService()
+
         # Header and navigation
         self.header = HeaderBar()
         self.header.page_selected.connect(self.change_page)
@@ -49,7 +52,9 @@ class DashboardWindow(QWidget):
 
         self.diagnostics_page = DiagnosticsPage()
 
-        self.settings_page = SettingsPage()
+        self.settings_page = SettingsPage(
+            self.settings_service
+        )
 
         # Page stack
         self.pages = QStackedWidget()
