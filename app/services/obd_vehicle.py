@@ -44,12 +44,14 @@ class OBDVehicleService:
             print(f"DOMO: Trying {port}")
 
             try:
+                print("DOMO: Opening connection...")
+
                 connection = obd.OBD(
                     portstr=port,
-                    baudrate=None,
                     fast=False,
-                    timeout=5,
                 )
+
+                print("DOMO: Connection object created")
 
                 if connection.is_connected():
                     self.connection = connection
