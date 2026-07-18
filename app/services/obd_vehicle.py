@@ -45,6 +45,9 @@ class OBDVehicleService:
             self.obd = RawOBD()
             self.obd.connect()
 
+            # Allow the CAN connection to settle before requesting PIDs.
+            time.sleep(1.0)
+
             self.connected = True
             print("DOMO: Live vehicle connection ready")
             return True
@@ -132,7 +135,7 @@ class OBDVehicleService:
     def _obd_loop(self) -> None:
         # Let the Pi, OBDLink and vehicle ECU finish waking up.
         print("DOMO: Waiting for vehicle systems...")
-        time.sleep(5)
+        time.sleep(2)
 
         while self.running:
             if not self.connected or self.obd is None:

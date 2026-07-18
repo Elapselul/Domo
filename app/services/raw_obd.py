@@ -29,43 +29,110 @@ class RawOBD:
     def connect(self) -> None:
         last_error: Exception | None = None
 
-        for port in self._find_ports():
-            try:
-                print(f"DOMO: Trying {port}")
+        # Give Linux time to finish detecting the USB adapter.
+        time.sleep(3)
 
-                self.serial = serial.Serial(
-                    port=port,
-                    baudrate=self.baud,
-                    timeout=3,
-                    write_timeout=2,
+        for attempt in range(1, 11):
+            ports = self._find_ports()
+
+            if not ports:
+                print(
+                    f"DOMO: Waiting for USB adapter "
+                    f"({attempt}/10)..."
                 )
+                time.sleep(2)
+                continue
 
-                self.port = port
+            for port in ports:
+                try:
+                    print(
+                        f"DOMO: Trying {port} "
+                        f"(attempt {attempt}/10)"
+                    )
 
-                setup_commands = [
-                    "ATZ",
-                    "ATE0",
-                    "ATL1",   # Keep responses on separate lines
-                    "ATS1",   # Keep spaces between bytes
-                    "ATH1",   # Include CAN header
-                    "ATSP6",  # 11-bit CAN, 500 kbit/s
-                    "ATCAF1", # CAN auto formatting / flow control
-                ]
+                    # Completely close any previous serial connection.
+                    self.close()
+                    time.sleep(0.5)
 
-                for command in setup_commands:
-                    self.send_raw(command, delay=0.2)
+                    self.serial = serial.Serial(
+                        port=port,
+                        baudrate=self.baud,
+                        timeout=3,
+                        write_timeout=2,
+                    )
 
-                print(f"DOMO: Connected on {port}")
-                return
+                    self.port = port
 
-            except (serial.SerialException, RawOBDError) as error:
-                last_error = error
-                self.close()
+                    # Toggle the serial control lines to help reset
+                    # an adapter that was opened during startup.
+                    self.serial.dtr = False
+                    self.serial.rts = False
+                    time.sleep(0.5)
+
+                    self.serial.dtr = True
+                    self.serial.rts = True
+                    time.sleep(1.0)
+
+                    # Clear anything left in the serial buffers.
+                    self.serial.reset_input_buffer()
+                    self.serial.reset_output_buffer()
+
+                    setup_commands = [
+                        ("ATZ", 1.5),
+                        ("ATE0", 0.2),
+                        ("ATL1", 0.2),
+                        ("ATS1", 0.2),
+                        ("ATH1", 0.2),
+                        ("ATSP6", 0.5),
+                        ("ATCAF1", 0.2),
+                    ]
+
+                    for command, delay in setup_commands:
+                        response = self.send_raw(
+                            command,
+                            delay=delay,
+                        )
+
+                        if (
+                            "?" in response
+                            or "UNABLE TO CONNECT" in response
+                            or "BUS ERROR" in response
+                        ):
+                            raise RawOBDError(
+                                f"{command} failed: {response.strip()}"
+                            )
+
+                    # Do not call it connected until the ECU answers.
+                    print("DOMO: Checking ECU response...")
+
+                    rpm_payload = self.pid(0x0C)
+
+                    if (
+                        len(rpm_payload) < 4
+                        or rpm_payload[0:2] != bytes((0x41, 0x0C))
+                    ):
+                        raise RawOBDError(
+                            "ECU did not return a valid RPM response"
+                        )
+
+                    print(f"DOMO: Connected on {port}")
+                    return
+
+                except (
+                    serial.SerialException,
+                    RawOBDError,
+                    OSError,
+                ) as error:
+                    last_error = error
+                    print(f"DOMO: Attempt failed: {error}")
+                    self.close()
+                    time.sleep(2)
 
         raise RawOBDError(
-            f"Could not connect to an OBD adapter: {last_error}"
+            "Could not connect after 10 attempts. "
+            f"Last error: {last_error}"
         )
-
+        
     def close(self) -> None:
         if self.serial is not None:
             try:
