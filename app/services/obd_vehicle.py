@@ -1,7 +1,9 @@
+import glob
 import threading
 import time
 
 import obd
+
 
 from app.models.vehicle_data import VehicleData
 
@@ -24,22 +26,42 @@ class OBDVehicleService:
         self.thread.start()
 
     def _connect(self):
+        import glob
+
         print("DOMO: Connecting to OBDLink...")
 
-        try:
-            connection = obd.OBD(fast=False)
+        ports = (
+            glob.glob("/dev/ttyUSB*")
+            + glob.glob("/dev/ttyACM*")
+        )
 
-            if connection.is_connected():
-                self.connection = connection
-                print("DOMO: Vehicle connected")
-                return True
+        if not ports:
+            print("DOMO: No USB serial adapter detected")
+            self.connection = None
+            return False
 
-            print("DOMO: Vehicle not detected")
-            connection.close()
+        for port in ports:
+            print(f"DOMO: Trying {port}")
 
-        except Exception as error:
-            print(f"DOMO: OBD connection error: {error}")
+            try:
+                connection = obd.OBD(
+                    portstr=port,
+                    baudrate=None,
+                    fast=False,
+                    timeout=5,
+                )
 
+                if connection.is_connected():
+                    self.connection = connection
+                    print(f"DOMO: Vehicle connected on {port}")
+                    return True
+
+                connection.close()
+
+            except Exception as error:
+                print(f"DOMO: Failed on {port}: {error}")
+
+        print("DOMO: Vehicle not detected")
         self.connection = None
         return False
 
