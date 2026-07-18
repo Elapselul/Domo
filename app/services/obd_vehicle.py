@@ -1,23 +1,36 @@
-import glob
+import re
 import threading
 import time
 
-import obd
-
-
 from app.models.vehicle_data import VehicleData
+from app.services.pid_decoder import decode_boost, decode_rpm
+from app.services.raw_obd import RawOBD, RawOBDError
 
 
 class OBDVehicleService:
     def __init__(self):
-        self.connection = None
+        self.obd: RawOBD | None = None
         self.running = True
+        self.connected = False
 
-        self.rpm = 0.0
+        # Values currently displayed by DOMO.
         self.speed = 0.0
+        self.rpm = 0.0
         self.battery = 0.0
-        self.throttle = 0.0
-        self.engine_load = 0.0
+
+        self.boost = 0.0
+        self.commanded_boost = 0.0
+        self.coolant = 0.0
+        self.egt = 0.0
+        self.trans_temp = 0.0
+        self.oil_pressure = 0.0
+        self.iat = 0.0
+        self.map = 0.0
+        self.maf = 0.0
+
+        # Your idle MAP reading was approximately 103 kPa.
+        # This is subtracted from absolute pressure to display gauge PSI.
+        self.atmospheric_kpa = 103.0
 
         self.thread = threading.Thread(
             target=self._obd_loop,
@@ -25,139 +38,146 @@ class OBDVehicleService:
         )
         self.thread.start()
 
-    def _connect(self):
-        import glob
-
+    def _connect(self) -> bool:
         print("DOMO: Connecting to OBDLink...")
 
-        ports = (
-            glob.glob("/dev/ttyUSB*")
-            + glob.glob("/dev/ttyACM*")
-        )
+        try:
+            self.obd = RawOBD()
+            self.obd.connect()
 
-        if not ports:
-            print("DOMO: No USB serial adapter detected")
-            self.connection = None
+            self.connected = True
+            print("DOMO: Live vehicle connection ready")
+            return True
+
+        except Exception as error:
+            print(f"DOMO: Connection failed: {error}")
+
+            self.connected = False
+
+            if self.obd is not None:
+                self.obd.close()
+
+            self.obd = None
             return False
 
-        for port in ports:
-            print(f"DOMO: Trying {port}")
+    def _read_battery_voltage(self) -> float | None:
+        """
+        Read adapter/vehicle voltage using the ELM command ATRV.
 
-            try:
-                print("DOMO: Opening connection...")
-
-                connection = obd.OBD(
-                    portstr=port,
-                    fast=False,
-                )
-
-                print("DOMO: Connection object created")
-
-                if connection.is_connected():
-                    self.connection = connection
-                    print(f"DOMO: Vehicle connected on {port}")
-                    return True
-
-                connection.close()
-
-            except Exception as error:
-                print(f"DOMO: Failed on {port}: {error}")
-
-        print("DOMO: Vehicle not detected")
-        self.connection = None
-        return False
-
-    def _read_value(self, command, unit=None):
-        if self.connection is None:
+        Typical response:
+            14.2V
+        """
+        if self.obd is None:
             return None
 
         try:
-            if not self.connection.supports(command):
+            response = self.obd.send_raw("ATRV")
+
+            match = re.search(
+                r"(\d+(?:\.\d+)?)\s*V",
+                response,
+                re.IGNORECASE,
+            )
+
+            if match is None:
                 return None
 
-            response = self.connection.query(command)
-
-            if response.is_null() or response.value is None:
-                return None
-
-            if unit is not None:
-                return float(response.value.to(unit).magnitude)
-
-            return float(response.value.magnitude)
+            return float(match.group(1))
 
         except Exception as error:
-            print(f"DOMO: Failed reading {command.name}: {error}")
+            print(f"DOMO: Battery read failed: {error}")
             return None
 
-    def _obd_loop(self):
+    def _read_live_values(self) -> None:
+        if self.obd is None:
+            return
+
+        # RPM — Mode 01 PID 0x0C
+        try:
+            rpm_payload = self.obd.pid(0x0C)
+            self.rpm = decode_rpm(rpm_payload)
+
+        except Exception as error:
+            print(f"DOMO: RPM read failed: {error}")
+
+        # Boost — Mode 01 PID 0x70
+        try:
+            boost_payload = self.obd.pid(0x70)
+
+            boost_data = decode_boost(
+                boost_payload,
+                atmospheric_kpa=self.atmospheric_kpa,
+            )
+
+            # Prevent tiny negative readings around idle.
+            self.boost = max(
+                0.0,
+                boost_data.actual_psi_gauge,
+            )
+
+            self.commanded_boost = max(
+                0.0,
+                boost_data.commanded_psi_gauge,
+            )
+
+        except Exception as error:
+            print(f"DOMO: Boost read failed: {error}")
+
+        # OBDLink supply voltage
+        battery = self._read_battery_voltage()
+
+        if battery is not None:
+            self.battery = battery
+
+    def _obd_loop(self) -> None:
+        # Let the Pi, OBDLink and vehicle ECU finish waking up.
+        print("DOMO: Waiting for vehicle systems...")
+        time.sleep(5)
+
         while self.running:
-            if self.connection is None or not self.connection.is_connected():
+            if not self.connected or self.obd is None:
                 if not self._connect():
                     time.sleep(3)
                     continue
 
-            rpm = self._read_value(
-                obd.commands.RPM,
-                "rpm",
-            )
+            try:
+                self._read_live_values()
 
-            speed = self._read_value(
-                obd.commands.SPEED,
-                "km/h",
-            )
+            except RawOBDError as error:
+                print(f"DOMO: OBD connection lost: {error}")
+                self._disconnect()
+                time.sleep(2)
 
-            battery = self._read_value(
-                obd.commands.ELM_VOLTAGE,
-                "volt",
-            )
+            except Exception as error:
+                print(f"DOMO: Vehicle loop error: {error}")
 
-            throttle = self._read_value(
-                obd.commands.THROTTLE_POS,
-                "percent",
-            )
+            time.sleep(0.05)
 
-            engine_load = self._read_value(
-                obd.commands.ENGINE_LOAD,
-                "percent",
-            )
+    def _disconnect(self) -> None:
+        self.connected = False
 
-            if rpm is not None:
-                self.rpm = rpm
+        if self.obd is not None:
+            self.obd.close()
 
-            if speed is not None:
-                self.speed = speed
+        self.obd = None
 
-            if battery is not None:
-                self.battery = battery
-
-            if throttle is not None:
-                self.throttle = throttle
-
-            if engine_load is not None:
-                self.engine_load = engine_load
-
-            time.sleep(0.15)
-
-    def get_data(self):
+    def get_data(self) -> VehicleData:
         return VehicleData(
             speed=self.speed,
             rpm=self.rpm,
             battery=self.battery,
 
-            boost=0.0,
-            commanded_boost=0.0,
-            coolant=0.0,
-            egt=0.0,
-            trans_temp=0.0,
-            oil_pressure=0.0,
-            iat=0.0,
-            map=0.0,
-            maf=0.0,
-
+            boost=self.boost,
+            commanded_boost=self.commanded_boost,
+            coolant=self.coolant,
+            egt=self.egt,
+            trans_temp=self.trans_temp,
+            oil_pressure=self.oil_pressure,
+            iat=self.iat,
+            map=self.map,
+            maf=self.maf,
         )
 
-    def close(self):
+    def close(self) -> None:
         self.running = False
-
-        if self.connection is not None:
-            self.connection.close()
+        self._disconnect()
