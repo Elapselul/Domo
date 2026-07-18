@@ -1,5 +1,5 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QGridLayout
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QGridLayout, QVBoxLayout, QWidget
 
 from app.widgets.circular_gauge import CircularGauge
 from app.widgets.value_card import ValueCard
@@ -14,7 +14,6 @@ class HomePage(QWidget):
         self.setStyleSheet(
             "background-color: #05070A; color: white;"
         )
-
 
         self.boost_gauge = CircularGauge(
             "BOOST",
@@ -48,22 +47,27 @@ class HomePage(QWidget):
         grid.addWidget(self.egt, 1, 0)
         grid.addWidget(self.trans_temp, 1, 1)
         grid.addWidget(self.oil_pressure, 1, 2)
-        grid.setSpacing(10)
+        grid.setSpacing(8)
+
+        for column in range(3):
+            grid.setColumnStretch(column, 1)
+
+        for row in range(2):
+            grid.setRowStretch(row, 1)
 
         layout = QVBoxLayout()
         layout.addWidget(
             self.boost_gauge,
+            stretch=5,
             alignment=Qt.AlignmentFlag.AlignCenter,
         )
-        layout.addLayout(grid)
-
-        layout.setContentsMargins(14, 10, 14, 12)
-        layout.setSpacing(10)
+        layout.addLayout(grid, stretch=4)
+        layout.setContentsMargins(8, 4, 8, 6)
+        layout.setSpacing(6)
 
         self.setLayout(layout)
 
     def update_data(self, data):
-
         self.boost_gauge.set_value(data.boost)
         self.rpm.set_value(data.rpm)
         self.coolant.set_value(data.coolant)

@@ -1,15 +1,19 @@
+from PyQt6.QtCore import (
+    QEasingCurve,
+    QPropertyAnimation,
+    Qt,
+    pyqtProperty,
+)
+from PyQt6.QtGui import QColor, QFont
 from PyQt6.QtWidgets import (
     QFrame,
-    QLabel,
-    QVBoxLayout,
     QGraphicsDropShadowEffect,
+    QLabel,
+    QSizePolicy,
+    QVBoxLayout,
 )
-from PyQt6.QtCore import Qt, pyqtProperty, QPropertyAnimation, QEasingCurve
-from PyQt6.QtGui import QFont, QColor
-from app.theme import colours
-from app.theme import sizes
-from app.theme import effects
-from app.theme import animations
+
+from app.theme import animations, colours, effects, sizes
 
 
 class ValueCard(QFrame):
@@ -26,6 +30,12 @@ class ValueCard(QFrame):
         self._display_value = 0.0
         self.unit_text = unit
 
+        self.setMinimumHeight(78)
+        self.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding,
+        )
+
         self.title_label = QLabel(title)
         self.value_label = QLabel(str(value))
         self.unit_label = QLabel(unit)
@@ -40,11 +50,7 @@ class ValueCard(QFrame):
         self.value_label.setFont(
             QFont("Inter", 32, QFont.Weight.Bold)
         )
-        self.unit_label.setFont(
-            QFont("Inter", 11)
-        )
-
-        self.setMinimumHeight(110)
+        self.unit_label.setFont(QFont("Inter", 11))
 
         self.setStyleSheet(f"""
             QFrame {{
@@ -76,9 +82,8 @@ class ValueCard(QFrame):
         self.setGraphicsEffect(glow)
 
         layout = QVBoxLayout()
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(2)
-
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(1)
         layout.addWidget(self.title_label)
         layout.addStretch()
         layout.addWidget(self.value_label)
@@ -87,9 +92,14 @@ class ValueCard(QFrame):
 
         self.setLayout(layout)
 
-        self.animation = QPropertyAnimation(self, b"display_value")
+        self.animation = QPropertyAnimation(
+            self,
+            b"display_value",
+        )
         self.animation.setDuration(animations.VALUE_DURATION)
-        self.animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.animation.setEasingCurve(
+            QEasingCurve.Type.OutCubic
+        )
 
     def get_display_value(self):
         return self._display_value
