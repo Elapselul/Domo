@@ -130,8 +130,6 @@ class OBDVehicleService:
             map=0.0,
             maf=0.0,
 
-            throttle=self.throttle,
-            engine_load=self.engine_load,
         )
 
     def close(self):
