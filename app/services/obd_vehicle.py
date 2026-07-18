@@ -98,7 +98,9 @@ class OBDVehicleService:
         # RPM — Mode 01 PID 0x0C
         try:
             rpm_payload = self.obd.pid(0x0C)
+            print(f"RPM payload: {rpm_payload}")
             self.rpm = decode_rpm(rpm_payload)
+            print(f"RPM: {self.rpm}")
 
         except Exception as error:
             print(f"DOMO: RPM read failed: {error}")
@@ -106,22 +108,15 @@ class OBDVehicleService:
         # Boost — Mode 01 PID 0x70
         try:
             boost_payload = self.obd.pid(0x70)
+            print(f"Boost payload: {boost_payload}")
 
             boost_data = decode_boost(
                 boost_payload,
                 atmospheric_kpa=self.atmospheric_kpa,
             )
 
-            # Prevent tiny negative readings around idle.
-            self.boost = max(
-                0.0,
-                boost_data.actual_psi_gauge,
-            )
-
-            self.commanded_boost = max(
-                0.0,
-                boost_data.commanded_psi_gauge,
-            )
+            self.boost = max(0.0, boost_data.actual_psi_gauge)
+            self.commanded_boost = max(0.0, boost_data.commanded_psi_gauge)
 
         except Exception as error:
             print(f"DOMO: Boost read failed: {error}")
