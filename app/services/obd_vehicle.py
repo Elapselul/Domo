@@ -127,43 +127,22 @@ class OBDVehicleService:
         except Exception as error:
             print(f"DOMO: Coolant read failed: {error}")
 
-    # EGT — Mode 01 PID 78
-    try:
-        egt_payload = self.obd.pid(0x78)
-        egt_value = decode_egt(egt_payload)
+        # EGT — Mode 01 PID 78
+        try:
+            egt_payload = self.obd.pid(0x78)
+            egt_value = decode_egt(egt_payload)
 
-        print(
-            "DOMO: EGT:",
-            egt_payload.hex(" ").upper(),
-            "->",
-            egt_value,
-        )
+            print(
+                "DOMO: EGT:",
+                egt_payload.hex(" ").upper(),
+                "->",
+                egt_value,
+            )
 
-        self.egt = egt_value
+            self.egt = egt_value
 
-    except Exception as error:
-        print(f"DOMO: EGT read failed: {error}")
-
-                # Leave this as None while testing. Some temporary ECU
-                # communication errors can look like unsupported PIDs.
-
-        # EGT bank 1 — Mode 01 PID 78
-        if self._egt_supported is not False:
-            try:
-                payload = self.obd.pid(0x78)
-
-                print(f"EGT payload: {payload}")
-
-                egt = decode_egt(payload)
-
-                if -40.0 <= egt <= 1200.0:
-                    self.egt = egt
-                    self._egt_supported = True
-
-                    print(f"EGT: {self.egt:.1f} °C")
-
-            except Exception as error:
-                print(f"DOMO: EGT read failed: {error}")
+        except Exception as error:
+            print(f"DOMO: EGT read failed: {error}")
 
     def _read_live_values(self) -> None:
         if self.obd is None:
