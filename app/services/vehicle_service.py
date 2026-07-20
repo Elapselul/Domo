@@ -16,3 +16,15 @@ class VehicleService:
 
     def get_current_data(self):
         return self.data_source.get_data()
+    
+    def get_status(self):
+        if USE_SIMULATOR:
+            return "Simulator", "warning"
+
+        try:
+            if getattr(self.data_source, "connected", False):
+                return "Connected", "success"
+            else:
+                return "Disconnected", "danger"
+        except Exception:
+            return "Disconnected", "danger"

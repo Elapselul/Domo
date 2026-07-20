@@ -83,6 +83,9 @@ class DashboardWindow(QWidget):
     def update_vehicle_data(self):
         data = self.vehicle_service.get_current_data()
 
+        status_text, status_colour = self.vehicle_service.get_status()
+        self.header.set_status(status_text, status_colour)
+
         self.data_logger.add_sample(data)
 
         self.home_page.update_data(data)

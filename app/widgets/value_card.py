@@ -48,7 +48,7 @@ class ValueCard(QFrame):
             QFont("Inter", 11, QFont.Weight.Bold)
         )
         self.value_label.setFont(
-            QFont("Inter", 32, QFont.Weight.Bold)
+            QFont("Inter", 22, QFont.Weight.Bold)
         )
         self.unit_label.setFont(QFont("Inter", 11))
 
