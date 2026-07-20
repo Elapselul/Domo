@@ -111,19 +111,38 @@ class OBDVehicleService:
             return
 
         # Coolant — Mode 01 PID 05
-            try:
-                payload = self.obd.pid(0x05)
+        try:
+            coolant_payload = self.obd.pid(0x05)
+            coolant_value = decode_coolant(coolant_payload)
 
-                print(f"Coolant raw: {payload}")
+            print(
+                "DOMO: Coolant:",
+                coolant_payload.hex(" ").upper(),
+                "->",
+                coolant_value,
+            )
 
-                coolant = decode_coolant(payload)
+            self.coolant = coolant_value
 
-                print(f"Decoded coolant: {coolant}")
+        except Exception as error:
+            print(f"DOMO: Coolant read failed: {error}")
 
-                self.coolant = coolant
+    # EGT — Mode 01 PID 78
+    try:
+        egt_payload = self.obd.pid(0x78)
+        egt_value = decode_egt(egt_payload)
 
-            except Exception as e:
-                print(f"Coolant error: {e}")
+        print(
+            "DOMO: EGT:",
+            egt_payload.hex(" ").upper(),
+            "->",
+            egt_value,
+        )
+
+        self.egt = egt_value
+
+    except Exception as error:
+        print(f"DOMO: EGT read failed: {error}")
 
                 # Leave this as None while testing. Some temporary ECU
                 # communication errors can look like unsupported PIDs.
