@@ -3,8 +3,14 @@ import threading
 import time
 
 from app.models.vehicle_data import VehicleData
-from app.services.pid_decoder import decode_boost, decode_rpm
+from app.services.pid_decoder import (
+    decode_boost,
+    decode_coolant,
+    decode_egt,
+    decode_rpm,
+)
 from app.services.raw_obd import RawOBD, RawOBDError
+
 
 
 class OBDVehicleService:
@@ -32,6 +38,15 @@ class OBDVehicleService:
         # This is subtracted from absolute pressure to display gauge PSI.
         self.atmospheric_kpa = 103.0
 
+        # RPM and boost are polled quickly.
+        # Temperatures and voltage are polled more slowly so they do not
+        # interrupt the responsive gauges.
+        self._last_temperature_poll = 0.0
+        self._last_battery_poll = 0.0
+
+        self._coolant_supported: bool | None = None
+        self._egt_supported: bool | None = None
+        
         self.thread = threading.Thread(
             target=self._obd_loop,
             daemon=True,
@@ -91,41 +106,100 @@ class OBDVehicleService:
             print(f"DOMO: Battery read failed: {error}")
             return None
 
+    def _read_temperature_values(self) -> None:
+        if self.obd is None:
+            return
+
+        # Coolant — Mode 01 PID 05
+        if self._coolant_supported is not False:
+            try:
+                payload = self.obd.pid(0x05)
+
+                print(f"Coolant payload: {payload}")
+
+                coolant = decode_coolant(payload)
+
+                # Reject obviously invalid readings before putting them
+                # on the dashboard.
+                if -40.0 <= coolant <= 215.0:
+                    self.coolant = coolant
+                    self._coolant_supported = True
+
+                    print(f"Coolant: {self.coolant:.1f} °C")
+
+            except Exception as error:
+                print(f"DOMO: Coolant read failed: {error}")
+
+                # Leave this as None while testing. Some temporary ECU
+                # communication errors can look like unsupported PIDs.
+
+        # EGT bank 1 — Mode 01 PID 78
+        if self._egt_supported is not False:
+            try:
+                payload = self.obd.pid(0x78)
+
+                print(f"EGT payload: {payload}")
+
+                egt = decode_egt(payload)
+
+                if -40.0 <= egt <= 1200.0:
+                    self.egt = egt
+                    self._egt_supported = True
+
+                    print(f"EGT: {self.egt:.1f} °C")
+
+            except Exception as error:
+                print(f"DOMO: EGT read failed: {error}")
+
     def _read_live_values(self) -> None:
         if self.obd is None:
             return
 
-        # RPM — Mode 01 PID 0x0C
+        current_time = time.monotonic()
+
+        # RPM — fast polling
         try:
             rpm_payload = self.obd.pid(0x0C)
-            print(f"RPM payload: {rpm_payload}")
             self.rpm = decode_rpm(rpm_payload)
-            print(f"RPM: {self.rpm}")
 
         except Exception as error:
             print(f"DOMO: RPM read failed: {error}")
 
-        # Boost — Mode 01 PID 0x70
+        # Boost — fast polling
         try:
             boost_payload = self.obd.pid(0x70)
-            print(f"Boost payload: {boost_payload}")
 
             boost_data = decode_boost(
                 boost_payload,
                 atmospheric_kpa=self.atmospheric_kpa,
             )
 
-            self.boost = max(0.0, boost_data.actual_psi_gauge)
-            self.commanded_boost = max(0.0, boost_data.commanded_psi_gauge)
+            self.boost = max(
+                0.0,
+                boost_data.actual_psi_gauge,
+            )
+
+            self.commanded_boost = max(
+                0.0,
+                boost_data.commanded_psi_gauge,
+            )
 
         except Exception as error:
             print(f"DOMO: Boost read failed: {error}")
 
-        # OBDLink supply voltage
-        battery = self._read_battery_voltage()
+        # Coolant and EGT — twice per second.
+        if current_time - self._last_temperature_poll >= 0.5:
+            self._last_temperature_poll = current_time
+            self._read_temperature_values()
 
-        if battery is not None:
-            self.battery = battery
+        # Battery — once every two seconds.
+        if current_time - self._last_battery_poll >= 2.0:
+            self._last_battery_poll = current_time
+
+            battery = self._read_battery_voltage()
+
+            if battery is not None:
+                self.battery = battery
 
     def _obd_loop(self) -> None:
         # Let the Pi, OBDLink and vehicle ECU finish waking up.

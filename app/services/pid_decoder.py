@@ -84,3 +84,58 @@ def decode_boost(
         ),
         control_status=payload[11],
     )
+
+def decode_coolant(payload: bytes | list[int]) -> float:
+    """
+    Mode 01 PID 05.
+
+    Formula:
+        coolant °C = A - 40
+    """
+    data = list(payload)
+
+    if len(data) < 1:
+        raise ValueError("Coolant payload is empty")
+
+    return float(data[0] - 40)
+
+
+def decode_egt(payload: bytes | list[int]) -> float:
+    """
+    Mode 01 PID 78 — exhaust gas temperature, bank 1.
+
+    The first byte indicates available EGT sensors.
+    Each available sensor temperature uses two bytes:
+
+        temperature °C = raw / 10 - 40
+
+    DOMO returns the first valid sensor value.
+    """
+    data = list(payload)
+
+    if len(data) < 3:
+        raise ValueError(
+            f"EGT payload is too short: {data}"
+        )
+
+    # Byte zero is the sensor-support bitmap.
+    sensor_data = data[1:]
+
+    for index in range(0, len(sensor_data) - 1, 2):
+        high_byte = sensor_data[index]
+        low_byte = sensor_data[index + 1]
+
+        raw_value = (high_byte << 8) | low_byte
+
+        # Common unavailable/reserved values.
+        if raw_value in (0x0000, 0xFFFF):
+            continue
+
+        temperature = (raw_value / 10.0) - 40.0
+
+        if -40.0 <= temperature <= 1200.0:
+            return temperature
+
+    raise ValueError(
+        f"No valid EGT sensor found in payload: {data}"
+    )
