@@ -45,8 +45,8 @@ def decode_boost(
     Expected payload:
         41 70 A B C D E F G H I J
 
-    B/C = commanded boost pressure A
-    D/E = boost pressure sensor A
+    B/C = commanded boost pressure
+    D/E = actual boost pressure
 
     Pressure values are absolute pressure:
         kPa = raw / 32
@@ -65,7 +65,9 @@ def decode_boost(
     commanded_kpa_gauge = (
         commanded_kpa_absolute - atmospheric_kpa
     )
-    actual_kpa_gauge = actual_kpa_absolute - atmospheric_kpa
+    actual_kpa_gauge = (
+        actual_kpa_absolute - atmospheric_kpa
+    )
 
     return BoostData(
         commanded_kpa_absolute=commanded_kpa_absolute,
@@ -85,57 +87,58 @@ def decode_boost(
         control_status=payload[11],
     )
 
-def decode_coolant(payload: bytes | list[int]) -> float:
+
+def decode_coolant(payload: bytes) -> float:
     """
-    Mode 01 PID 05.
+    Decode Mode 01 PID 0x05.
+
+    Expected payload:
+        41 05 A
 
     Formula:
-        coolant °C = A - 40
+        A - 40
     """
-    data = list(payload)
-
-    if len(data) < 1:
-        raise ValueError("Coolant payload is empty")
-
-    return float(data[0] - 40)
-
-
-def decode_egt(payload: bytes | list[int]) -> float:
-    """
-    Mode 01 PID 78 — exhaust gas temperature, bank 1.
-
-    The first byte indicates available EGT sensors.
-    Each available sensor temperature uses two bytes:
-
-        temperature °C = raw / 10 - 40
-
-    DOMO returns the first valid sensor value.
-    """
-    data = list(payload)
-
-    if len(data) < 3:
-        raise ValueError(
-            f"EGT payload is too short: {data}"
+    if len(payload) < 3 or payload[0:2] != bytes((0x41, 0x05)):
+        raise PIDDecodeError(
+            f"Invalid coolant payload: {payload.hex(' ').upper()}"
         )
 
-    # Byte zero is the sensor-support bitmap.
-    sensor_data = data[1:]
+    return float(payload[2] - 40)
 
-    for index in range(0, len(sensor_data) - 1, 2):
-        high_byte = sensor_data[index]
-        low_byte = sensor_data[index + 1]
 
-        raw_value = (high_byte << 8) | low_byte
+def decode_egt(payload: bytes) -> float:
+    """
+    Decode Mode 01 PID 0x78.
 
-        # Common unavailable/reserved values.
-        if raw_value in (0x0000, 0xFFFF):
+    Expected payload:
+        41 78 bitmap A B C D ...
+
+    Temperature:
+        raw / 10 - 40
+    """
+    if len(payload) < 5 or payload[0:2] != bytes((0x41, 0x78)):
+        raise PIDDecodeError(
+            f"Invalid EGT payload: {payload.hex(' ').upper()}"
+        )
+
+    bitmap = payload[2]
+
+    for sensor in range(4):
+        if not (bitmap & (1 << sensor)):
             continue
 
-        temperature = (raw_value / 10.0) - 40.0
+        index = 3 + sensor * 2
 
-        if -40.0 <= temperature <= 1200.0:
-            return temperature
+        if index + 1 >= len(payload):
+            break
 
-    raise ValueError(
-        f"No valid EGT sensor found in payload: {data}"
+        raw = (payload[index] << 8) | payload[index + 1]
+
+        if raw in (0x0000, 0xFFFF):
+            continue
+
+        return (raw / 10.0) - 40.0
+
+    raise PIDDecodeError(
+        "No valid EGT sensor found"
     )
