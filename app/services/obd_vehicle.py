@@ -111,24 +111,19 @@ class OBDVehicleService:
             return
 
         # Coolant — Mode 01 PID 05
-        if self._coolant_supported is not False:
             try:
                 payload = self.obd.pid(0x05)
 
-                print(f"Coolant payload: {payload}")
+                print(f"Coolant raw: {payload}")
 
                 coolant = decode_coolant(payload)
 
-                # Reject obviously invalid readings before putting them
-                # on the dashboard.
-                if -40.0 <= coolant <= 215.0:
-                    self.coolant = coolant
-                    self._coolant_supported = True
+                print(f"Decoded coolant: {coolant}")
 
-                    print(f"Coolant: {self.coolant:.1f} °C")
+                self.coolant = coolant
 
-            except Exception as error:
-                print(f"DOMO: Coolant read failed: {error}")
+            except Exception as e:
+                print(f"Coolant error: {e}")
 
                 # Leave this as None while testing. Some temporary ECU
                 # communication errors can look like unsupported PIDs.
